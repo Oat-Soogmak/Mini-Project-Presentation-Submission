@@ -1,0 +1,34 @@
+# systemd service สำหรับติดตั้งแบบไม่ใช้ Docker (ดู DEPLOY.md หัวข้อ "ติดตั้งแบบไม่ใช้ Docker")
+# คัดลอกไปที่ /etc/systemd/system/helpdesk.service
+[Unit]
+Description=IT Helpdesk
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=helpdesk
+Group=helpdesk
+WorkingDirectory=/opt/helpdesk
+# ไฟล์ตัวแปร เช่น NODE_ENV=production / DATA_DIR=/var/lib/helpdesk / HOST=127.0.0.1 / TRUST_PROXY=1  (สิทธิ์ 600)
+EnvironmentFile=/etc/helpdesk.env
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning src/server.js
+Restart=on-failure
+RestartSec=3
+# ระบบรับ SIGTERM แล้วปิดอย่างสุภาพ
+TimeoutStopSec=15
+
+# จำกัดสิทธิ์ของโปรเซส: เขียนได้เฉพาะโฟลเดอร์ข้อมูล
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/helpdesk
+StateDirectory=helpdesk
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,16 @@
+# Caddy: รับ HTTPS จากอินเทอร์เน็ตแล้วส่งต่อให้แอป
+# ชื่อโดเมนมาจากตัวแปร DOMAIN ในไฟล์ .env (ต้องชี้ DNS มาที่เครื่องนี้ก่อน และเปิดพอร์ต 80/443)
+{$DOMAIN} {
+	# ตรงกับขีดจำกัดของแอป (รูปแนบ 3 รูป)
+	request_body {
+		max_size 8MB
+	}
+
+	# บังคับ HTTPS ในเบราว์เซอร์ 1 ปี (เปิดใช้เมื่อมั่นใจว่า HTTPS ใช้งานได้แล้วเท่านั้น)
+	header Strict-Transport-Security "max-age=31536000"
+
+	# flush_interval -1: ส่งข้อมูลทันทีโดยไม่พัก buffer เพื่อให้ real-time (SSE) ทำงานได้
+	reverse_proxy app:3000 {
+		flush_interval -1
+	}
+}

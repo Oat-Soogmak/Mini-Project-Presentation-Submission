@@ -1,0 +1,60 @@
+# IT Helpdesk: แอป + Caddy (ออกและต่ออายุใบรับรอง HTTPS ให้อัตโนมัติ) + สำรองข้อมูลรายวัน
+# วิธีใช้ดูใน DEPLOY.md   สรุป: cp .env.example .env → แก้ไข → docker compose up -d --build
+
+services:
+  app:
+    build: .
+    image: it-helpdesk:latest
+    init: true
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATA_DIR: /data
+      # แอปอยู่หลัง Caddy: ใช้ IP ผู้ใช้จริงจาก X-Forwarded-For (สำคัญต่อการจำกัดการแจ้งซ่อม/ล็อกอินต่อ IP)
+      TRUST_PROXY: "1"
+    volumes:
+      - helpdesk-data:/data
+    expose:
+      - "3000"        # ไม่เปิดพอร์ตออกนอกเครื่อง: เข้าถึงผ่าน Caddy เท่านั้น
+    stop_grace_period: 15s
+
+  backup:
+    image: it-helpdesk:latest
+    init: true
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      DATA_DIR: /data
+      BACKUP_DIR: /backups
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes:
+      - helpdesk-data:/data
+      - helpdesk-backups:/backups
+    # สำรองทันทีเมื่อเริ่มทำงาน แล้วทุก 24 ชั่วโมง (ไฟล์สำรองในเครื่องเดียวกันไม่พอ ต้องคัดลอกออกไปเก็บที่อื่นด้วย ดู DEPLOY.md)
+    command: ["sh", "-c", "while true; do node --disable-warning=ExperimentalWarning scripts/backup.js; sleep 86400; done"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:?กรุณาตั้งค่า DOMAIN ในไฟล์ .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  helpdesk-data:
+  helpdesk-backups:
+  caddy-data:
+  caddy-config:
