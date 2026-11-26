@@ -32,7 +32,7 @@
 
 ### macOS / Linux
 ```bash
-cd 02_SourceCode
+cd SourceCode
 npm start          # เปิดที่ http://localhost:3000
 ```
 
